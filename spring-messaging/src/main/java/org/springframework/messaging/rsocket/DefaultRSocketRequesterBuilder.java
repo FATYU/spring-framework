@@ -20,6 +20,7 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
+import java.util.stream.Stream;
 
 import io.rsocket.RSocketFactory;
 import io.rsocket.transport.ClientTransport;
@@ -28,15 +29,22 @@ import io.rsocket.transport.netty.client.WebsocketClientTransport;
 import reactor.core.publisher.Mono;
 
 import org.springframework.lang.Nullable;
+import org.springframework.util.Assert;
 import org.springframework.util.MimeType;
 
 /**
  * Default implementation of {@link RSocketRequester.Builder}.
  *
  * @author Brian Clozel
+ * @author Rossen Stoyanchev
  * @since 5.2
  */
 final class DefaultRSocketRequesterBuilder implements RSocketRequester.Builder {
+
+	@Nullable
+	private MimeType dataMimeType;
+
+	private MimeType metadataMimeType = DefaultRSocketRequester.COMPOSITE_METADATA;
 
 	private List<Consumer<RSocketFactory.ClientRSocketFactory>> factoryConfigurers = new ArrayList<>();
 
@@ -45,6 +53,19 @@ final class DefaultRSocketRequesterBuilder implements RSocketRequester.Builder {
 
 	private List<Consumer<RSocketStrategies.Builder>> strategiesConfigurers = new ArrayList<>();
 
+
+	@Override
+	public RSocketRequester.Builder dataMimeType(@Nullable MimeType mimeType) {
+		this.dataMimeType = mimeType;
+		return this;
+	}
+
+	@Override
+	public RSocketRequester.Builder metadataMimeType(MimeType mimeType) {
+		Assert.notNull(mimeType, "`metadataMimeType` is required");
+		this.metadataMimeType = mimeType;
+		return this;
+	}
 
 	@Override
 	public RSocketRequester.Builder rsocketFactory(Consumer<RSocketFactory.ClientRSocketFactory> configurer) {
@@ -76,43 +97,53 @@ final class DefaultRSocketRequesterBuilder implements RSocketRequester.Builder {
 
 	@Override
 	public Mono<RSocketRequester> connect(ClientTransport transport) {
-		return Mono.defer(() -> {
-			RSocketStrategies strategies = getRSocketStrategies();
-			MimeType dataMimeType = getDefaultDataMimeType(strategies);
+		return Mono.defer(() -> doConnect(transport));
+	}
 
-			RSocketFactory.ClientRSocketFactory factory = RSocketFactory.connect();
-			if (dataMimeType != null) {
-				factory.dataMimeType(dataMimeType.toString());
-			}
-			this.factoryConfigurers.forEach(configurer -> configurer.accept(factory));
+	private Mono<RSocketRequester> doConnect(ClientTransport transport) {
 
-			return factory.transport(transport).start()
-					.map(rsocket -> new DefaultRSocketRequester(rsocket, dataMimeType, strategies));
-		});
+		RSocketStrategies rsocketStrategies = getRSocketStrategies();
+		Assert.isTrue(!rsocketStrategies.encoders().isEmpty(), "No encoders");
+		Assert.isTrue(!rsocketStrategies.decoders().isEmpty(), "No decoders");
+
+		RSocketFactory.ClientRSocketFactory rsocketFactory = RSocketFactory.connect();
+		MimeType dataMimeType = getDataMimeType(rsocketStrategies);
+		rsocketFactory.dataMimeType(dataMimeType.toString());
+		rsocketFactory.metadataMimeType(this.metadataMimeType.toString());
+		this.factoryConfigurers.forEach(consumer -> consumer.accept(rsocketFactory));
+
+		return rsocketFactory.transport(transport)
+				.start()
+				.map(rsocket -> new DefaultRSocketRequester(
+						rsocket, dataMimeType, this.metadataMimeType, rsocketStrategies));
 	}
 
 	private RSocketStrategies getRSocketStrategies() {
-		if (this.strategiesConfigurers.isEmpty()) {
+		if (!this.strategiesConfigurers.isEmpty()) {
+			RSocketStrategies.Builder builder =
+					this.strategies != null ? this.strategies.mutate() : RSocketStrategies.builder();
+			this.strategiesConfigurers.forEach(c -> c.accept(builder));
+			return builder.build();
+		}
+		else {
 			return this.strategies != null ? this.strategies : RSocketStrategies.builder().build();
 		}
-		RSocketStrategies.Builder strategiesBuilder = this.strategies != null ?
-				this.strategies.mutate() : RSocketStrategies.builder();
-		this.strategiesConfigurers.forEach(configurer -> configurer.accept(strategiesBuilder));
-		return strategiesBuilder.build();
 	}
 
-	@Nullable
-	private MimeType getDefaultDataMimeType(RSocketStrategies strategies) {
-		return strategies.encoders().stream()
-				.flatMap(encoder -> encoder.getEncodableMimeTypes().stream())
-				.filter(MimeType::isConcrete)
-				.findFirst()
-				.orElseGet(() ->
+	private MimeType getDataMimeType(RSocketStrategies strategies) {
+		if (this.dataMimeType != null) {
+			return this.dataMimeType;
+		}
+		return Stream
+				.concat(
+						strategies.encoders().stream()
+								.flatMap(encoder -> encoder.getEncodableMimeTypes().stream()),
 						strategies.decoders().stream()
 								.flatMap(encoder -> encoder.getDecodableMimeTypes().stream())
-								.filter(MimeType::isConcrete)
-								.findFirst()
-								.orElse(null));
+				)
+				.filter(MimeType::isConcrete)
+				.findFirst()
+				.orElseThrow(() -> new IllegalArgumentException("Failed to select data MimeType to use."));
 	}
 
 }
