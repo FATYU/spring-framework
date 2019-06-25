@@ -1,0 +1,11 @@
+@startuml
+Title: Spring XML Based Load Bean Sequece
+XmlBeanFactory -> XmlBeanDefinitionReader: loadBeanDefinitions
+XmlBeanDefinitionReader -> EncodedResource:new EncodedResource(Resource)
+XmlBeanDefinitionReader <-- EncodedResource:new EncodedResource(Resource)
+XmlBeanDefinitionReader -> XmlBeanDefinitionReader:loadBeanDefinitions()
+XmlBeanDefinitionReader -> EncodedResource:getResouce().getInputStream()
+XmlBeanDefinitionReader <-- XmlBeanDefinitionReader:doLoadBeanDefinitions()
+XmlBeanDefinitionReader <-- XmlBeanDefinitionReader:registerBeanDefinitions():int
+XmlBeanFactory <-- XmlBeanDefinitionReader:loadBeanDefinitions():int
+@enduml
