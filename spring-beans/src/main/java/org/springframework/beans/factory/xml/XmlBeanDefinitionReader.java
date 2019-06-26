@@ -472,6 +472,12 @@ public class XmlBeanDefinitionReader extends AbstractBeanDefinitionReader {
 	 * @see #loadBeanDefinitions
 	 * @see #setDocumentReaderClass
 	 * @see BeanDefinitionDocumentReader#registerBeanDefinitions
+	 *
+	 * 注册BeanDefinition
+	 * 1.创建documentReader,使用BeanUtils根据DefaultBeanDefinitionDocumentReader创建reader对象实例.
+	 * 2.获取当前BeanFactory中bean对象数量
+	 * 3.根据doc和resource注册新的对象信息.
+	 * 4.返回注册后bean数量-注册之前bean数量
 	 */
 	public int registerBeanDefinitions(Document doc, Resource resource) throws BeanDefinitionStoreException {
 		BeanDefinitionDocumentReader documentReader = createBeanDefinitionDocumentReader();

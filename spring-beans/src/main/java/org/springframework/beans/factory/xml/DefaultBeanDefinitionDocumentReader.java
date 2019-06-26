@@ -16,18 +16,8 @@
 
 package org.springframework.beans.factory.xml;
 
-import java.io.IOException;
-import java.net.URISyntaxException;
-import java.util.LinkedHashSet;
-import java.util.Set;
-
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.w3c.dom.Document;
-import org.w3c.dom.Element;
-import org.w3c.dom.Node;
-import org.w3c.dom.NodeList;
-
 import org.springframework.beans.factory.BeanDefinitionStoreException;
 import org.springframework.beans.factory.config.BeanDefinitionHolder;
 import org.springframework.beans.factory.parsing.BeanComponentDefinition;
@@ -38,6 +28,15 @@ import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.ResourceUtils;
 import org.springframework.util.StringUtils;
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
+import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
+
+import java.io.IOException;
+import java.net.URISyntaxException;
+import java.util.LinkedHashSet;
+import java.util.Set;
 
 /**
  * Default implementation of the {@link BeanDefinitionDocumentReader} interface that
@@ -89,6 +88,10 @@ public class DefaultBeanDefinitionDocumentReader implements BeanDefinitionDocume
 	 * (or DTD, historically).
 	 * <p>Opens a DOM Document; then initializes the default settings
 	 * specified at the {@code <beans/>} level; then parses the contained bean definitions.
+	 *
+	 * ------
+	 * NOTALK:根据document对象获取首要元素(ROOT),执行注册BeanDefinition方法
+	 * ------
 	 */
 	@Override
 	public void registerBeanDefinitions(Document doc, XmlReaderContext readerContext) {
@@ -116,6 +119,9 @@ public class DefaultBeanDefinitionDocumentReader implements BeanDefinitionDocume
 
 	/**
 	 * Register each bean definition within the given root {@code <beans/>} element.
+	 * ------
+	 * NOTALK:对Bean标签进行注册处理
+	 * ------
 	 */
 	@SuppressWarnings("deprecation")  // for Environment.acceptsProfiles(String...)
 	protected void doRegisterBeanDefinitions(Element root) {
@@ -129,22 +135,24 @@ public class DefaultBeanDefinitionDocumentReader implements BeanDefinitionDocume
 		this.delegate = createDelegate(getReaderContext(), root, parent);
 
 		if (this.delegate.isDefaultNamespace(root)) {
+			//获取spring中的profile配置. 根据spring.profile配置不同加载不同的beans节点信息
 			String profileSpec = root.getAttribute(PROFILE_ATTRIBUTE);
 			if (StringUtils.hasText(profileSpec)) {
-				String[] specifiedProfiles = StringUtils.tokenizeToStringArray(
-						profileSpec, BeanDefinitionParserDelegate.MULTI_VALUE_ATTRIBUTE_DELIMITERS);
+				String[] specifiedProfiles = StringUtils.tokenizeToStringArray(profileSpec, BeanDefinitionParserDelegate.MULTI_VALUE_ATTRIBUTE_DELIMITERS);
 				// We cannot use Profiles.of(...) since profile expressions are not supported
 				// in XML config. See SPR-12458 for details.
 				if (!getReaderContext().getEnvironment().acceptsProfiles(specifiedProfiles)) {
 					if (logger.isDebugEnabled()) {
-						logger.debug("Skipped XML bean definition file due to specified profiles [" + profileSpec +
-								"] not matching: " + getReaderContext().getResource());
+						logger.debug("Skipped XML bean definition file due to specified profiles [" + profileSpec + "] not matching: " + getReaderContext()
+								.getResource());
 					}
 					return;
 				}
 			}
 		}
-
+		/*
+		 * NOTALK: 模板模式   子类继承了DefaultBeanDefinitionDocumentReader 重写preProcessXml方法和postProcessXml方法就可以对xml文件做相应的处理
+		 */
 		preProcessXml(root);
 		parseBeanDefinitions(root, this.delegate);
 		postProcessXml(root);
@@ -152,8 +160,7 @@ public class DefaultBeanDefinitionDocumentReader implements BeanDefinitionDocume
 		this.delegate = parent;
 	}
 
-	protected BeanDefinitionParserDelegate createDelegate(
-			XmlReaderContext readerContext, Element root, @Nullable BeanDefinitionParserDelegate parentDelegate) {
+	protected BeanDefinitionParserDelegate createDelegate(XmlReaderContext readerContext, Element root, @Nullable BeanDefinitionParserDelegate parentDelegate) {
 
 		BeanDefinitionParserDelegate delegate = new BeanDefinitionParserDelegate(readerContext);
 		delegate.initDefaults(root, parentDelegate);
@@ -174,30 +181,28 @@ public class DefaultBeanDefinitionDocumentReader implements BeanDefinitionDocume
 					Element ele = (Element) node;
 					if (delegate.isDefaultNamespace(ele)) {
 						parseDefaultElement(ele, delegate);
-					}
-					else {
+					} else {
 						delegate.parseCustomElement(ele);
 					}
 				}
 			}
-		}
-		else {
+		} else {
 			delegate.parseCustomElement(root);
 		}
 	}
 
 	private void parseDefaultElement(Element ele, BeanDefinitionParserDelegate delegate) {
 		if (delegate.nodeNameEquals(ele, IMPORT_ELEMENT)) {
+			//NOTALK:导入资源,使用getcontext再次加载相应的资源文件,重走之前流程.
 			importBeanDefinitionResource(ele);
-		}
-		else if (delegate.nodeNameEquals(ele, ALIAS_ELEMENT)) {
+		} else if (delegate.nodeNameEquals(ele, ALIAS_ELEMENT)) {
 			processAliasRegistration(ele);
-		}
-		else if (delegate.nodeNameEquals(ele, BEAN_ELEMENT)) {
+		} else if (delegate.nodeNameEquals(ele, BEAN_ELEMENT)) {
+			//NOTALK:最重要的Bean标签处理
 			processBeanDefinition(ele, delegate);
-		}
-		else if (delegate.nodeNameEquals(ele, NESTED_BEANS_ELEMENT)) {
-			// recurse
+		} else if (delegate.nodeNameEquals(ele, NESTED_BEANS_ELEMENT)) {
+			// recurse  不建议循环套用beans标签
+			// NOTALK:诅咒????(黑人脸)
 			doRegisterBeanDefinitions(ele);
 		}
 	}
@@ -222,8 +227,7 @@ public class DefaultBeanDefinitionDocumentReader implements BeanDefinitionDocume
 		boolean absoluteLocation = false;
 		try {
 			absoluteLocation = ResourcePatternUtils.isUrl(location) || ResourceUtils.toURI(location).isAbsolute();
-		}
-		catch (URISyntaxException ex) {
+		} catch (URISyntaxException ex) {
 			// cannot convert to an URI, considering the location relative
 			// unless it is the well-known Spring prefix "classpath*:"
 		}
@@ -235,13 +239,10 @@ public class DefaultBeanDefinitionDocumentReader implements BeanDefinitionDocume
 				if (logger.isTraceEnabled()) {
 					logger.trace("Imported " + importCount + " bean definitions from URL location [" + location + "]");
 				}
+			} catch (BeanDefinitionStoreException ex) {
+				getReaderContext().error("Failed to import bean definitions from URL location [" + location + "]", ele, ex);
 			}
-			catch (BeanDefinitionStoreException ex) {
-				getReaderContext().error(
-						"Failed to import bean definitions from URL location [" + location + "]", ele, ex);
-			}
-		}
-		else {
+		} else {
 			// No URL -> considering resource location as relative to the current file.
 			try {
 				int importCount;
@@ -249,22 +250,17 @@ public class DefaultBeanDefinitionDocumentReader implements BeanDefinitionDocume
 				if (relativeResource.exists()) {
 					importCount = getReaderContext().getReader().loadBeanDefinitions(relativeResource);
 					actualResources.add(relativeResource);
-				}
-				else {
+				} else {
 					String baseLocation = getReaderContext().getResource().getURL().toString();
-					importCount = getReaderContext().getReader().loadBeanDefinitions(
-							StringUtils.applyRelativePath(baseLocation, location), actualResources);
+					importCount = getReaderContext().getReader().loadBeanDefinitions(StringUtils.applyRelativePath(baseLocation, location), actualResources);
 				}
 				if (logger.isTraceEnabled()) {
 					logger.trace("Imported " + importCount + " bean definitions from relative location [" + location + "]");
 				}
-			}
-			catch (IOException ex) {
+			} catch (IOException ex) {
 				getReaderContext().error("Failed to resolve current resource location", ele, ex);
-			}
-			catch (BeanDefinitionStoreException ex) {
-				getReaderContext().error(
-						"Failed to import bean definitions from relative location [" + location + "]", ele, ex);
+			} catch (BeanDefinitionStoreException ex) {
+				getReaderContext().error("Failed to import bean definitions from relative location [" + location + "]", ele, ex);
 			}
 		}
 		Resource[] actResArray = actualResources.toArray(new Resource[0]);
@@ -289,10 +285,8 @@ public class DefaultBeanDefinitionDocumentReader implements BeanDefinitionDocume
 		if (valid) {
 			try {
 				getReaderContext().getRegistry().registerAlias(name, alias);
-			}
-			catch (Exception ex) {
-				getReaderContext().error("Failed to register alias '" + alias +
-						"' for bean with name '" + name + "'", ele, ex);
+			} catch (Exception ex) {
+				getReaderContext().error("Failed to register alias '" + alias + "' for bean with name '" + name + "'", ele, ex);
 			}
 			getReaderContext().fireAliasRegistered(name, alias, extractSource(ele));
 		}
@@ -301,6 +295,8 @@ public class DefaultBeanDefinitionDocumentReader implements BeanDefinitionDocume
 	/**
 	 * Process the given bean element, parsing the bean definition
 	 * and registering it with the registry.
+	 *
+	 * NOTALK:::处理bean标签元素,解析Bean definition 并注册到registry中
 	 */
 	protected void processBeanDefinition(Element ele, BeanDefinitionParserDelegate delegate) {
 		BeanDefinitionHolder bdHolder = delegate.parseBeanDefinitionElement(ele);
@@ -309,10 +305,8 @@ public class DefaultBeanDefinitionDocumentReader implements BeanDefinitionDocume
 			try {
 				// Register the final decorated instance.
 				BeanDefinitionReaderUtils.registerBeanDefinition(bdHolder, getReaderContext().getRegistry());
-			}
-			catch (BeanDefinitionStoreException ex) {
-				getReaderContext().error("Failed to register bean definition with name '" +
-						bdHolder.getBeanName() + "'", ele, ex);
+			} catch (BeanDefinitionStoreException ex) {
+				getReaderContext().error("Failed to register bean definition with name '" + bdHolder.getBeanName() + "'", ele, ex);
 			}
 			// Send registration event.
 			getReaderContext().fireComponentRegistered(new BeanComponentDefinition(bdHolder));
