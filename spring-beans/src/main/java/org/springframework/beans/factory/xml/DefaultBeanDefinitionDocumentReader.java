@@ -299,11 +299,14 @@ public class DefaultBeanDefinitionDocumentReader implements BeanDefinitionDocume
 	 * NOTALK:::处理bean标签元素,解析Bean definition 并注册到registry中
 	 */
 	protected void processBeanDefinition(Element ele, BeanDefinitionParserDelegate delegate) {
-		BeanDefinitionHolder bdHolder = delegate.parseBeanDefinitionElement(ele);
+		//NOTALK:解析Element,获取xml中的class\name\id等信息返回给BeanDefinitionHolder对象
+		//NOTALK:内部持有BeanDefinition的对象的引用
+		BeanDefinitionHolder bdHolder = delegate.parseBeanDefinitionElement(ele);//创建beanDefinition对象
 		if (bdHolder != null) {
 			bdHolder = delegate.decorateBeanDefinitionIfRequired(ele, bdHolder);
 			try {
 				// Register the final decorated instance.
+				//NOTALK:::对BeanDefinitionHoldor进行注册
 				BeanDefinitionReaderUtils.registerBeanDefinition(bdHolder, getReaderContext().getRegistry());
 			} catch (BeanDefinitionStoreException ex) {
 				getReaderContext().error("Failed to register bean definition with name '" + bdHolder.getBeanName() + "'", ele, ex);
