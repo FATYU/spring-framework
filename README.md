@@ -28,3 +28,15 @@ Follow [@SpringCentral](https://twitter.com/springcentral), [@SpringFramework](h
 ## License
 
 The Spring Framework is released under version 2.0 of the [Apache License](https://www.apache.org/licenses/LICENSE-2.0).
+
+
+
+----
+
+## 源码阅读相关标记描述
+
+`NT:`  表示一般含义注释
+
+`NT:::`表示很重要,很核心的注释
+
+`:boom:`表示有正反方向思考的注释

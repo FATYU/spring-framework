@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	   xmlns:yu="http://www.notalk.cc/scheme/yu"
+	   xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+	   http://www.notalk.cc/scheme/yu http://www.notalk.cc/scheme/yu.xsd">
+	<yu:user id="1" address="hz" name="zy"></yu:user>
+</beans>

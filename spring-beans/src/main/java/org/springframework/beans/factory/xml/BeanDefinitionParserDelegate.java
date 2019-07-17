@@ -376,12 +376,12 @@ public class BeanDefinitionParserDelegate {
 	 */
 	@Nullable
 	public BeanDefinitionHolder parseBeanDefinitionElement(Element ele, @Nullable BeanDefinition containingBean) {
-		//NOTALK:获取id属性
+		//NT:获取id属性
 		String id = ele.getAttribute(ID_ATTRIBUTE);
-		//NOTALK:获取name属性
+		//NT:获取name属性
 		String nameAttr = ele.getAttribute(NAME_ATTRIBUTE);
 
-		//NOTALK:分割name属性,添加到别名列表中
+		//NT:分割name属性,添加到别名列表中
 		List<String> aliases = new ArrayList<>();
 		if (StringUtils.hasLength(nameAttr)) {
 			String[] nameArr = StringUtils.tokenizeToStringArray(nameAttr, MULTI_VALUE_ATTRIBUTE_DELIMITERS);
@@ -397,19 +397,19 @@ public class BeanDefinitionParserDelegate {
 		}
 
 		if (containingBean == null) {
-			//NOTALK:判断当前name和alias不存在,一个set集合存储了所有的beanname
+			//NT:判断当前name和alias不存在,一个set集合存储了所有的beanname
 			checkNameUniqueness(beanName, aliases, ele);
 		}
-		//NOTALK:::创建抽象BeanDefinition
+		//NT:::创建抽象BeanDefinition
 		AbstractBeanDefinition beanDefinition = parseBeanDefinitionElement(ele, beanName, containingBean);
 		if (beanDefinition != null) {
-			//NOTALK: 如果没有指定beanName,生成默认的BeanName
+			//NT: 如果没有指定beanName,生成默认的BeanName
 			if (!StringUtils.hasText(beanName)) {
 				try {
-					if (containingBean != null) {// NOTALK:当通过xml元素解析BeanDefinition不为空时
-						//NOTALK:重新赋值BeanName
+					if (containingBean != null) {// NT:当通过xml元素解析BeanDefinition不为空时
+						//NT:重新赋值BeanName
 						beanName = BeanDefinitionReaderUtils.generateBeanName(beanDefinition, this.readerContext.getRegistry(), true);
-					} else {// NOTALK:当通过xml元素解析BeanDefinition为空时,在readerContext中根据beanDefinition生成BeanName
+					} else {// NT:当通过xml元素解析BeanDefinition为空时,在readerContext中根据beanDefinition生成BeanName
 						beanName = this.readerContext.generateBeanName(beanDefinition);
 						// Register an alias for the plain bean class name, if still possible,
 						// if the generator returned the class name plus a suffix.
@@ -480,7 +480,7 @@ public class BeanDefinitionParserDelegate {
 			//创建beanDefinition-@see org.springframework.beans.factory.support.GenericBeanDefinition
 			AbstractBeanDefinition bd = createBeanDefinition(className, parent);
 
-			parseBeanDefinitionAttributes(ele, beanName, containingBean, bd);//NOTALK: 解析spring中硬编码的属性值 例如 scope\autowire\lazy-init等等
+			parseBeanDefinitionAttributes(ele, beanName, containingBean, bd);//NT: 解析spring中硬编码的属性值 例如 scope\autowire\lazy-init等等
 			bd.setDescription(DomUtils.getChildElementValueByTagName(ele, DESCRIPTION_ELEMENT));//设置bean的描述信息
 
 			parseMetaElements(ele, bd);//解析元数据,设置Key-Value信息
@@ -1250,6 +1250,10 @@ public class BeanDefinitionParserDelegate {
 		return TRUE_VALUE.equals(value);
 	}
 
+
+	/*
+	NT:::自定义标签解析入口
+	*/
 	@Nullable
 	public BeanDefinition parseCustomElement(Element ele) {
 		return parseCustomElement(ele, null);
@@ -1297,8 +1301,8 @@ public class BeanDefinitionParserDelegate {
 
 	public BeanDefinitionHolder decorateIfRequired(Node node, BeanDefinitionHolder originalDef, @Nullable BeanDefinition containingBd) {
 
-		String namespaceUri = getNamespaceURI(node);
-		if (namespaceUri != null && !isDefaultNamespace(namespaceUri)) {
+		String namespaceUri = getNamespaceURI(node); // 获取自定义标签命名空间
+		if (namespaceUri != null && !isDefaultNamespace(namespaceUri)) {// 判断不与默认命名空间相同
 			NamespaceHandler handler = this.readerContext.getNamespaceHandlerResolver().resolve(namespaceUri);
 			if (handler != null) {
 				BeanDefinitionHolder decorated = handler.decorate(node, originalDef, new ParserContext(this.readerContext, this, containingBd));
@@ -1314,7 +1318,7 @@ public class BeanDefinitionParserDelegate {
 				}
 			}
 		}
-		return originalDef;
+		return originalDef;// 默认返回原有beanDefinitionHolder
 	}
 
 	@Nullable

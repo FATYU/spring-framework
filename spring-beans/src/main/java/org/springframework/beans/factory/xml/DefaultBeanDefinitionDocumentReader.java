@@ -90,7 +90,7 @@ public class DefaultBeanDefinitionDocumentReader implements BeanDefinitionDocume
 	 * specified at the {@code <beans/>} level; then parses the contained bean definitions.
 	 *
 	 * ------
-	 * NOTALK:根据document对象获取首要元素(ROOT),执行注册BeanDefinition方法
+	 * NT:根据document对象获取首要元素(ROOT),执行注册BeanDefinition方法
 	 * ------
 	 */
 	@Override
@@ -120,7 +120,7 @@ public class DefaultBeanDefinitionDocumentReader implements BeanDefinitionDocume
 	/**
 	 * Register each bean definition within the given root {@code <beans/>} element.
 	 * ------
-	 * NOTALK:对Bean标签进行注册处理
+	 * NT:对Bean标签进行注册处理
 	 * ------
 	 */
 	@SuppressWarnings("deprecation")  // for Environment.acceptsProfiles(String...)
@@ -151,9 +151,10 @@ public class DefaultBeanDefinitionDocumentReader implements BeanDefinitionDocume
 			}
 		}
 		/*
-		 * NOTALK: 模板模式   子类继承了DefaultBeanDefinitionDocumentReader 重写preProcessXml方法和postProcessXml方法就可以对xml文件做相应的处理
+		 * NT: 模板模式   子类继承了DefaultBeanDefinitionDocumentReader 重写preProcessXml方法和postProcessXml方法就可以对xml文件做相应的处理
 		 */
 		preProcessXml(root);
+		//NT:::解析beanDefinition
 		parseBeanDefinitions(root, this.delegate);
 		postProcessXml(root);
 
@@ -163,6 +164,7 @@ public class DefaultBeanDefinitionDocumentReader implements BeanDefinitionDocume
 	protected BeanDefinitionParserDelegate createDelegate(XmlReaderContext readerContext, Element root, @Nullable BeanDefinitionParserDelegate parentDelegate) {
 
 		BeanDefinitionParserDelegate delegate = new BeanDefinitionParserDelegate(readerContext);
+		//NT:::创建默认BeanDefinition解析包装类
 		delegate.initDefaults(root, parentDelegate);
 		return delegate;
 	}
@@ -193,16 +195,18 @@ public class DefaultBeanDefinitionDocumentReader implements BeanDefinitionDocume
 
 	private void parseDefaultElement(Element ele, BeanDefinitionParserDelegate delegate) {
 		if (delegate.nodeNameEquals(ele, IMPORT_ELEMENT)) {
-			//NOTALK:导入资源,使用getcontext再次加载相应的资源文件,重走之前流程.
+			//NT:导入资源,使用getcontext再次加载相应的资源文件,重走之前流程.
+			//:boom:项目中使用import有利于模块化划分配置文件(基于xml的bean配置模式,可以做到模块化管理bean),唯一的缺点就是维护时,需要多次查看不同的import文件.
 			importBeanDefinitionResource(ele);
 		} else if (delegate.nodeNameEquals(ele, ALIAS_ELEMENT)) {
+			//处理alias标签
 			processAliasRegistration(ele);
 		} else if (delegate.nodeNameEquals(ele, BEAN_ELEMENT)) {
-			//NOTALK:最重要的Bean标签处理
+			//NT:最重要的Bean标签(spring默认标签)处理
 			processBeanDefinition(ele, delegate);
 		} else if (delegate.nodeNameEquals(ele, NESTED_BEANS_ELEMENT)) {
 			// recurse  不建议循环套用beans标签
-			// NOTALK:诅咒????(黑人脸)
+			// NT:诅咒????(黑人脸)
 			doRegisterBeanDefinitions(ele);
 		}
 	}
@@ -212,7 +216,9 @@ public class DefaultBeanDefinitionDocumentReader implements BeanDefinitionDocume
 	 * from the given resource into the bean factory.
 	 */
 	protected void importBeanDefinitionResource(Element ele) {
+		// NT:获取resource属性
 		String location = ele.getAttribute(RESOURCE_ATTRIBUTE);
+		//如果resource值为空,记录错误信息,并返回
 		if (!StringUtils.hasText(location)) {
 			getReaderContext().error("Resource location must not be empty", ele);
 			return;
@@ -234,6 +240,7 @@ public class DefaultBeanDefinitionDocumentReader implements BeanDefinitionDocume
 
 		// Absolute or relative?
 		if (absoluteLocation) {
+			//绝对位置直接加载资源
 			try {
 				int importCount = getReaderContext().getReader().loadBeanDefinitions(location, actualResources);
 				if (logger.isTraceEnabled()) {
@@ -244,6 +251,7 @@ public class DefaultBeanDefinitionDocumentReader implements BeanDefinitionDocume
 			}
 		} else {
 			// No URL -> considering resource location as relative to the current file.
+			//相对位置,先获取相对当前文件路径,然后计算出绝对路径,再进行资源文件加载
 			try {
 				int importCount;
 				Resource relativeResource = getReaderContext().getResource().createRelative(location);
@@ -264,6 +272,7 @@ public class DefaultBeanDefinitionDocumentReader implements BeanDefinitionDocume
 			}
 		}
 		Resource[] actResArray = actualResources.toArray(new Resource[0]);
+		//NT:发送import处理结束事件
 		getReaderContext().fireImportProcessed(location, actResArray, extractSource(ele));
 	}
 
@@ -284,10 +293,12 @@ public class DefaultBeanDefinitionDocumentReader implements BeanDefinitionDocume
 		}
 		if (valid) {
 			try {
+				//获取上下文,并注册alias标签内容(BeanName)
 				getReaderContext().getRegistry().registerAlias(name, alias);
 			} catch (Exception ex) {
 				getReaderContext().error("Failed to register alias '" + alias + "' for bean with name '" + name + "'", ele, ex);
 			}
+			//别名注册完成后,通知事件监听,进行后续操作
 			getReaderContext().fireAliasRegistered(name, alias, extractSource(ele));
 		}
 	}
@@ -296,22 +307,26 @@ public class DefaultBeanDefinitionDocumentReader implements BeanDefinitionDocume
 	 * Process the given bean element, parsing the bean definition
 	 * and registering it with the registry.
 	 *
-	 * NOTALK:::处理bean标签元素,解析Bean definition 并注册到registry中
+	 * NT:::处理bean标签元素,解析Bean definition 并注册到registry中
 	 */
 	protected void processBeanDefinition(Element ele, BeanDefinitionParserDelegate delegate) {
-		//NOTALK:解析Element,获取xml中的class\name\id等信息返回给BeanDefinitionHolder对象
-		//NOTALK:内部持有BeanDefinition的对象的引用
-		BeanDefinitionHolder bdHolder = delegate.parseBeanDefinitionElement(ele);//创建beanDefinition对象
+		/*NT:解析Element,获取xml中的class\name\id等信息返回给BeanDefinitionHolder对象
+		 *NT:内部持有BeanDefinition的对象的引用
+		 */
+		//创建beanDefinition对象,解析默认标签.(holder 使用装饰者模式)
+		BeanDefinitionHolder bdHolder = delegate.parseBeanDefinitionElement(ele);
 		if (bdHolder != null) {
+			// 解析自定义标签
 			bdHolder = delegate.decorateBeanDefinitionIfRequired(ele, bdHolder);
 			try {
 				// Register the final decorated instance.
-				//NOTALK:::对BeanDefinitionHoldor进行注册
+				//NT:::对BeanDefinitionHoldor进行注册
 				BeanDefinitionReaderUtils.registerBeanDefinition(bdHolder, getReaderContext().getRegistry());
 			} catch (BeanDefinitionStoreException ex) {
 				getReaderContext().error("Failed to register bean definition with name '" + bdHolder.getBeanName() + "'", ele, ex);
 			}
 			// Send registration event.
+			// 触发注册BeanDefinition请求 注册BeanDefinitionHolder对象到beanFactory中
 			getReaderContext().fireComponentRegistered(new BeanComponentDefinition(bdHolder));
 		}
 	}
