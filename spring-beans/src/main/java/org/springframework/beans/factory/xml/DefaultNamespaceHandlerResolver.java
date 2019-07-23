@@ -16,14 +16,8 @@
 
 package org.springframework.beans.factory.xml;
 
-import java.io.IOException;
-import java.util.Map;
-import java.util.Properties;
-import java.util.concurrent.ConcurrentHashMap;
-
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.FatalBeanException;
 import org.springframework.core.io.support.PropertiesLoaderUtils;
@@ -31,6 +25,11 @@ import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.ClassUtils;
 import org.springframework.util.CollectionUtils;
+
+import java.io.IOException;
+import java.util.Map;
+import java.util.Properties;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Default implementation of the {@link NamespaceHandlerResolver} interface.
@@ -119,30 +118,28 @@ public class DefaultNamespaceHandlerResolver implements NamespaceHandlerResolver
 		Object handlerOrClassName = handlerMappings.get(namespaceUri);
 		if (handlerOrClassName == null) {
 			return null;
-		}
-		else if (handlerOrClassName instanceof NamespaceHandler) {
+		} else if (handlerOrClassName instanceof NamespaceHandler) {
 			return (NamespaceHandler) handlerOrClassName;
-		}
-		else {
+		} else {
 			String className = (String) handlerOrClassName;
 			try {
+				//通过反射回去对应的handler类
 				Class<?> handlerClass = ClassUtils.forName(className, this.classLoader);
 				if (!NamespaceHandler.class.isAssignableFrom(handlerClass)) {
-					throw new FatalBeanException("Class [" + className + "] for namespace [" + namespaceUri +
-							"] does not implement the [" + NamespaceHandler.class.getName() + "] interface");
+					throw new FatalBeanException(
+							"Class [" + className + "] for namespace [" + namespaceUri + "] does not implement the [" + NamespaceHandler.class.getName()
+									+ "] interface");
 				}
 				NamespaceHandler namespaceHandler = (NamespaceHandler) BeanUtils.instantiateClass(handlerClass);
 				namespaceHandler.init();
+				//将handler放入handlerMappings
 				handlerMappings.put(namespaceUri, namespaceHandler);
 				return namespaceHandler;
-			}
-			catch (ClassNotFoundException ex) {
-				throw new FatalBeanException("Could not find NamespaceHandler class [" + className +
-						"] for namespace [" + namespaceUri + "]", ex);
-			}
-			catch (LinkageError err) {
-				throw new FatalBeanException("Unresolvable class definition for NamespaceHandler class [" +
-						className + "] for namespace [" + namespaceUri + "]", err);
+			} catch (ClassNotFoundException ex) {
+				throw new FatalBeanException("Could not find NamespaceHandler class [" + className + "] for namespace [" + namespaceUri + "]", ex);
+			} catch (LinkageError err) {
+				throw new FatalBeanException(
+						"Unresolvable class definition for NamespaceHandler class [" + className + "] for namespace [" + namespaceUri + "]", err);
 			}
 		}
 	}
@@ -160,18 +157,15 @@ public class DefaultNamespaceHandlerResolver implements NamespaceHandlerResolver
 						logger.trace("Loading NamespaceHandler mappings from [" + this.handlerMappingsLocation + "]");
 					}
 					try {
-						Properties mappings =
-								PropertiesLoaderUtils.loadAllProperties(this.handlerMappingsLocation, this.classLoader);
+						Properties mappings = PropertiesLoaderUtils.loadAllProperties(this.handlerMappingsLocation, this.classLoader);
 						if (logger.isTraceEnabled()) {
 							logger.trace("Loaded NamespaceHandler mappings: " + mappings);
 						}
 						handlerMappings = new ConcurrentHashMap<>(mappings.size());
 						CollectionUtils.mergePropertiesIntoMap(mappings, handlerMappings);
 						this.handlerMappings = handlerMappings;
-					}
-					catch (IOException ex) {
-						throw new IllegalStateException(
-								"Unable to load NamespaceHandler mappings from location [" + this.handlerMappingsLocation + "]", ex);
+					} catch (IOException ex) {
+						throw new IllegalStateException("Unable to load NamespaceHandler mappings from location [" + this.handlerMappingsLocation + "]", ex);
 					}
 				}
 			}
