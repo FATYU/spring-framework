@@ -6,10 +6,11 @@ import org.springframework.core.io.ClassPathResource;
 import org.springframework.util.Assert;
 
 public class SpringTests {
-    @Test
-    public void testLoadBean() {
-        BeanFactory bf = new XmlBeanFactory(new ClassPathResource("beans.xml"));
-        Bean bean = (Bean) bf.getBean("beanName");
-        Assert.notNull(bean);
-    }
+	@Test
+	public void testLoadBean() {
+		BeanFactory bf = new XmlBeanFactory(new ClassPathResource("beans.xml"));
+		//通过beanfactory获取bean对象
+		Bean bean = (Bean) bf.getBean("beanName");
+		Assert.notNull(bean);
+	}
 }

@@ -192,11 +192,15 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 	@SuppressWarnings("unchecked")
 	protected <T> T doGetBean(final String name, @Nullable final Class<T> requiredType, @Nullable final Object[] args, boolean typeCheckOnly)
 			throws BeansException {
+		//1.进行beanName转化:从缓存map中获取beanName,如果没有会进行
+		final String beanName = transformedBeanName(name);//获取最终的beanName 如果是别名链 获取最终真实的beanName   eg:  a alias  b  ,b alias c . name is a ,result beanName is c
 
-		final String beanName = transformedBeanName(name);
 		Object bean;
 
 		// Eagerly check singleton cache for manually registered singletons.
+		// 2.获取单例缓存对象,检查单例缓存对象
+		// NT:::因为在创建单例Bean的时候会存在依赖注入的情况,创建以来的时候为了避免循环依赖,Spring创建Bean的远侧是:
+		// NT:::不等Bean创建结束就会将Bean的ObjectFactory提早share,将BeanFactory加入缓存中,一旦下个bean依赖,直接使用ObjectFactory
 		Object sharedInstance = getSingleton(beanName);
 		if (sharedInstance != null && args == null) {
 			if (logger.isTraceEnabled()) {
@@ -207,10 +211,12 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 					logger.trace("Returning cached instance of singleton bean '" + beanName + "'");
 				}
 			}
+			//3.缓存中获取单例对象(最初的缓存Bean对象,不一定是最终bean对象实例)
 			bean = getObjectForBeanInstance(sharedInstance, name, beanName, null);
 		} else {
 			// Fail if we're already creating this bean instance:
 			// We're assumably within a circular reference.
+			//4.对象已经开始创建,现在拿到的可能是"预存(ShareInstance)"对象,造成这个原因可能是出现了[循环引用],接下来判断Scope是不是原型,如果是原型类型,抛出Bean在创建异常
 			if (isPrototypeCurrentlyInCreation(beanName)) {
 				throw new BeanCurrentlyInCreationException(beanName);
 			}
@@ -260,6 +266,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 				}
 
 				// Create bean instance.
+				// 单例对象创建
 				if (mbd.isSingleton()) {
 					sharedInstance = getSingleton(beanName, () -> {
 						try {
@@ -273,7 +280,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 						}
 					});
 					bean = getObjectForBeanInstance(sharedInstance, name, beanName, mbd);
-				} else if (mbd.isPrototype()) {
+				} else if (mbd.isPrototype()) {// 原型对象创建
 					// It's a prototype -> create a new instance.
 					Object prototypeInstance = null;
 					try {
@@ -283,7 +290,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 						afterPrototypeCreation(beanName);
 					}
 					bean = getObjectForBeanInstance(prototypeInstance, name, beanName, mbd);
-				} else {
+				} else {//其他scope创建
 					String scopeName = mbd.getScope();
 					final Scope scope = this.scopes.get(scopeName);
 					if (scope == null) {
@@ -1523,6 +1530,10 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 	 * @param beanName the canonical bean name
 	 * @param mbd the merged bean definition
 	 * @return the object to expose for the bean
+	 */
+	/**
+	 * 获取给定的BeanName的bean实例,bean的实例或者是创建对象的FactoryBean
+	 * NT:::
 	 */
 	protected Object getObjectForBeanInstance(Object beanInstance, String name, String beanName, @Nullable RootBeanDefinition mbd) {
 

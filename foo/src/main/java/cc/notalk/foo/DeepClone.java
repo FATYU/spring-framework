@@ -48,7 +48,9 @@ public class DeepClone implements Serializable, Cloneable {
 	}
 }
 
-
+/**
+ * 深度拷贝
+ */
 class Person implements Serializable, Cloneable {
 	public String getName() {
 		return name;

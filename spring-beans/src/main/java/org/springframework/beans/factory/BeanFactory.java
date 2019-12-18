@@ -19,6 +19,15 @@ package org.springframework.beans.factory;
 import org.springframework.beans.BeansException;
 import org.springframework.core.ResolvableType;
 import org.springframework.lang.Nullable;
+/**
+ * NT:
+ * BeanFactory是Spring Bean容器的最底层接口，是一个基础的bean容器的客户端视图。
+ * 扩展的例如 ListableBeanFactory和ConfigurableBeanFactory是包含了特殊功能的接口。
+ *
+ * NT:::最终要的是BeanFactory是程序组件的注册中心和配置中心
+ *  Spring's Dependency Injection functionality is implemented using this BeanFactory interface and its subinterfaces.
+ * spring的依赖注入功能是通过使用BeanFactory接口和它的子接口实现的。
+ */
 
 /**
  * The root interface for accessing a Spring bean container.
@@ -36,7 +45,6 @@ import org.springframework.lang.Nullable;
  * depends on the bean factory configuration: the API is the same. Since Spring
  * 2.0, further scopes are available depending on the concrete application
  * context (e.g. "request" and "session" scopes in a web environment).
- *
  * <p>The point of this approach is that the BeanFactory is a central registry
  * of application components, and centralizes configuration of application
  * components (no more do individual objects need to read properties files,
